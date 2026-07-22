@@ -83,3 +83,8 @@ variable "ssh_public_keys" {
   type        = list(string)
   default     = []
 }
+variable "started" {
+  description = "Whether the virtual machine should be running"
+  type        = bool
+  default     = true
+}

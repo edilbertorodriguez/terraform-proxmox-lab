@@ -62,5 +62,5 @@ resource "proxmox_virtual_environment_vm" "this" {
     type = "l26"
   }
 
-  started = true
+  started = var.started
 }
