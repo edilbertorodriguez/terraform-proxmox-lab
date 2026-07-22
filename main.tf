@@ -4,6 +4,11 @@ locals {
       vm_id   = 500
       vm_name = "ubuntu-test01"
     }
+
+    ubuntu-test02 = {
+      vm_id   = 501
+      vm_name = "ubuntu-test02"
+    }
   }
 }
 
