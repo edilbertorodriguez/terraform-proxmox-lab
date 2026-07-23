@@ -41,7 +41,7 @@ jobs:
         run: tflint --recursive
 
       - name: Run Trivy Security Scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: "config"
           scan-ref: "."
