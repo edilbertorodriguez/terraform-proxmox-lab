@@ -72,14 +72,15 @@ Current features include:
 ```
 terraform-proxmox/
 │
-├── environments/
-├── main.tf
 ├── modules/
+│   └── ubuntu_vm/
+├── screenshots/
+├── .gitignore
+├── .terraform.lock.hcl
+├── main.tf
 ├── outputs.tf
 ├── providers.tf
 ├── README.md
-├── scripts/
-├── terraform.tfvars
 ├── variables.tf
 └── versions.tf
 ```
