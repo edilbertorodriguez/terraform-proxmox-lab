@@ -39,3 +39,12 @@ jobs:
 
       - name: Run TFLint
         run: tflint --recursive
+
+      - name: Run Trivy Security Scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "config"
+          scan-ref: "."
+          format: "table"
+          exit-code: "1"
+          severity: "HIGH,CRITICAL"
