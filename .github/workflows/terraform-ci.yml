@@ -4,12 +4,13 @@ on:
   push:
     branches:
       - main
+      - feat/github-actions-ci
   pull_request:
     branches:
       - main
 
-  permissions:
-    contents: read
+permissions:
+  contents: read
 
 jobs:
   validate:
@@ -28,14 +29,13 @@ jobs:
 
       - name: Configure Terraform plugin cache
         run: |
-          mkdir -p ~/.terraform.d
-          echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > ~/.terraformrc
+          mkdir -p "$HOME/.terraform.d/plugin-cache"
+          echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > "$HOME/.terraformrc"
 
       - name: Cache Terraform providers
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.terraform.d/plugin-cache
+          path: ~/.terraform.d/plugin-cache
           key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             ${{ runner.os }}-terraform-
@@ -50,15 +50,18 @@ jobs:
         run: terraform validate
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
+        uses: terraform-linters/setup-tflint@v6
         with:
           tflint_version: latest
+
+      - name: Show TFLint Version
+        run: tflint --version
 
       - name: Run TFLint
         run: tflint --recursive
 
       - name: Run Trivy Security Scanner
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: config
           scan-ref: .
@@ -67,7 +70,9 @@ jobs:
           severity: HIGH,CRITICAL
 
       - name: Install ShellCheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
 
       - name: Lint Deployment Script
         run: shellcheck scripts/deploy.sh
