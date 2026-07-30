@@ -1,5 +1,7 @@
 # Terraform Proxmox Infrastructure as Code
 
+[![Terraform CI](https://github.com/edilbertorodriguez/terraform-proxmox-lab/actions/workflows/terraform-ci.yml/badge.svg)](https://github.com/edilbertorodriguez/terraform-proxmox-lab/actions/workflows/terraform-ci.yml)
+
 > Production-style Infrastructure as Code (IaC) project using Terraform to automate Ubuntu virtual machine deployments on a Proxmox Virtual Environment.
 
 ---
@@ -19,10 +21,29 @@ Current features include:
 - Multiple VM deployment using `for_each`
 - Per-VM CPU, memory and disk customization
 - Dynamic IP discovery using the QEMU Guest Agent
-- Automatic YAML inventory generation for Ansible
+- Automatic Ansible inventory generation from Terraform outputs
+- End-to-end Terraform → Ansible deployment pipeline
 - Power state management
 - Git version control
 - Version tagging
+
+---
+
+## Continuous Integration
+
+GitHub Actions automatically validates every push and pull request targeting the `main` branch.
+
+The CI workflow performs:
+
+- Terraform formatting validation with `terraform fmt`
+- Terraform initialization without a remote backend
+- Terraform configuration validation
+- Static analysis with TFLint
+- Infrastructure security scanning with Trivy
+- Shell script analysis with ShellCheck
+- Terraform provider caching to improve workflow performance
+
+The workflow definition is located at `.github/workflows/terraform-ci.yml`.
 
 ---
 
