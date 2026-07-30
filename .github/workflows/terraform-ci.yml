@@ -8,9 +8,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  terraform:
-    name: Terraform Validation
+  validate:
+    name: Validate Infrastructure Repository
     runs-on: ubuntu-latest
 
     steps:
@@ -20,7 +23,21 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: latest
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: Configure Terraform plugin cache
+        run: |
+          mkdir -p "$HOME/.terraform.d/plugin-cache"
+          echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > "$HOME/.terraformrc"
+
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
@@ -32,7 +49,9 @@ jobs:
         run: terraform validate
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
+        uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: latest
 
       - name: Show TFLint Version
         run: tflint --version
@@ -41,10 +60,18 @@ jobs:
         run: tflint --recursive
 
       - name: Run Trivy Security Scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
-          scan-type: "config"
-          scan-ref: "."
-          format: "table"
-          exit-code: "1"
-          severity: "HIGH,CRITICAL"
+          scan-type: config
+          scan-ref: .
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint Deployment Script
+        run: shellcheck scripts/deploy.sh
