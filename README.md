@@ -13,11 +13,13 @@ The objective is to eliminate manual virtual machine deployment by defining the 
 Current features include:
 
 - Modular Terraform architecture
-- Reusable VM module
+- Reusable Ubuntu VM module
 - Cloud-Init provisioning
 - SSH key injection
 - Multiple VM deployment using `for_each`
 - Per-VM CPU, memory and disk customization
+- Dynamic IP discovery using the QEMU Guest Agent
+- Automatic YAML inventory generation for Ansible
 - Power state management
 - Git version control
 - Version tagging
@@ -36,6 +38,8 @@ Current features include:
 | SSH | Secure Administration |
 | Ubuntu Server | Terraform Controller |
 | Proxmox API | Infrastructure Automation |
+| QEMU Guest Agent | VM IP discovery |
+| Ansible | Configuration Management |
 
 ---
 
@@ -52,17 +56,25 @@ Current features include:
                                 ▼
                    +-------------------------+
                    |    Proxmox VE Host      |
-                   |        pve-k9           |
                    +-----------+-------------+
                                |
-         +---------------------+----------------------+
-         |                                            |
-         ▼                                            ▼
+        +----------------------+----------------------+
+        |                                             |
+        ▼                                             ▼
  +-------------------+                     +-------------------+
  | ubuntu-test01     |                     | ubuntu-test02     |
- | VMID 500          |                     | VMID 501          |
- | Ubuntu 24.04      |                     | Ubuntu 24.04      |
  +-------------------+                     +-------------------+
+        |                                             |
+        +----------------------+----------------------+
+                               |
+                               ▼
+                  QEMU Guest Agent reports IPs
+                               |
+                               ▼
+               Terraform generates inventory.yml
+                               |
+                               ▼
+                     Ready for Ansible
 ```
 
 ---
@@ -252,3 +264,19 @@ Building enterprise home lab environments focused on Infrastructure Automation, 
 # License
 
 This project is intended for educational and portfolio purposes.
+
+# Roadmap
+
+## Completed
+
+- Ubuntu VM provisioning with Terraform
+- Cloud-Init configuration
+- Dynamic IP discovery via QEMU Guest Agent
+- Automatic Ansible inventory generation
+
+## Planned
+
+- Automatic Ansible playbook execution after provisioning
+- Multi-environment support (dev/lab/prod)
+- GitHub Actions deployment pipeline
+- Wazuh and Security Onion automated deployments
