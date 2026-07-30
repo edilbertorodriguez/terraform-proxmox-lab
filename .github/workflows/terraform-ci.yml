@@ -1,15 +1,15 @@
 name: Terraform CI
 
 on:
-  permissions:
-    contents: read
-
   push:
     branches:
       - main
   pull_request:
     branches:
       - main
+
+  permissions:
+  contents: read
 
 jobs:
   validate:
