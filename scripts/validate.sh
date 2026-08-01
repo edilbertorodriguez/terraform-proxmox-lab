@@ -12,6 +12,7 @@
 #   3. Confirm each VM has a discovered IPv4 address
 #   4. Confirm each VM is reachable over the network
 #   5. Confirm each VM is accepting SSH connections
+#   6. Confirm authenticated SSH access works
 #
 ###############################################################################
 
@@ -28,14 +29,14 @@ echo " Terraform Post-Deployment Validation"
 echo "=========================================================="
 
 echo
-echo "[1/5] Verifying Terraform state..."
+echo "[1/6] Verifying Terraform state..."
 
 terraform state list >/dev/null
 
 echo "Terraform state is accessible."
 
 echo
-echo "[2/5] Reading deployed virtual machine information..."
+echo "[2/6] Reading deployed virtual machine information..."
 
 VIRTUAL_MACHINES_JSON="$(terraform output -json virtual_machines)"
 
@@ -47,13 +48,14 @@ fi
 echo "Virtual machine output loaded successfully."
 
 echo
-echo "[3/5] Validating discovered IPv4 addresses..."
+echo "[3/6] Validating discovered IPv4 addresses..."
 
 mapfile -t VM_NAMES < <(
     jq -r 'keys[]' <<<"${VIRTUAL_MACHINES_JSON}"
 )
 
 declare -A VM_IPS
+declare -A VM_USERS
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="$(
@@ -67,13 +69,23 @@ for VM_NAME in "${VM_NAMES[@]}"; do
         exit 1
     fi
 
+    VM_USER="$(
+        jq -r --arg name "${VM_NAME}"             '.[$name].ssh_username // empty'             <<<"${VIRTUAL_MACHINES_JSON}"
+    )"
+
+    if [[ -z "${VM_USER}" ]]; then
+        echo "ERROR: ${VM_NAME} does not have an SSH username."
+        exit 1
+    fi
+
     VM_IPS["${VM_NAME}"]="${VM_IP}"
+    VM_USERS["${VM_NAME}"]="${VM_USER}"
 
     echo "PASS: ${VM_NAME} reported IPv4 address ${VM_IP}"
 done
 
 echo
-echo "[4/5] Validating network reachability..."
+echo "[4/6] Validating network reachability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -89,7 +101,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[5/5] Validating SSH availability..."
+echo "[5/6] Validating SSH availability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -102,6 +114,26 @@ for VM_NAME in "${VM_NAMES[@]}"; do
     fi
 
     echo "PASS: ${VM_NAME} is accepting SSH connections."
+done
+
+echo
+echo "[6/6] Validating authenticated SSH access..."
+
+KNOWN_HOSTS_FILE="$(mktemp)"
+trap 'rm -f "${KNOWN_HOSTS_FILE}"' EXIT
+
+for VM_NAME in "${VM_NAMES[@]}"; do
+    VM_IP="${VM_IPS[${VM_NAME}]}"
+    VM_USER="${VM_USERS[${VM_NAME}]}"
+
+    echo "Authenticating to ${VM_NAME} as ${VM_USER}..."
+
+    if ! ssh         -o BatchMode=yes         -o ConnectTimeout=5         -o StrictHostKeyChecking=accept-new         -o UserKnownHostsFile="${KNOWN_HOSTS_FILE}"         "${VM_USER}@${VM_IP}"         'true'; then
+        echo "ERROR: Authenticated SSH failed for ${VM_USER}@${VM_IP}."
+        exit 1
+    fi
+
+    echo "PASS: Authenticated SSH succeeded for ${VM_USER}@${VM_IP}"
 done
 
 echo
