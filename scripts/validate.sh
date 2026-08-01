@@ -11,6 +11,7 @@
 #   2. Read deployed VM connection information
 #   3. Confirm each VM has a discovered IPv4 address
 #   4. Confirm each VM is reachable over the network
+#   5. Confirm each VM is accepting SSH connections
 #
 ###############################################################################
 
@@ -27,14 +28,14 @@ echo " Terraform Post-Deployment Validation"
 echo "=========================================================="
 
 echo
-echo "[1/4] Verifying Terraform state..."
+echo "[1/5] Verifying Terraform state..."
 
 terraform state list >/dev/null
 
 echo "Terraform state is accessible."
 
 echo
-echo "[2/4] Reading deployed virtual machine information..."
+echo "[2/5] Reading deployed virtual machine information..."
 
 VIRTUAL_MACHINES_JSON="$(terraform output -json virtual_machines)"
 
@@ -46,7 +47,7 @@ fi
 echo "Virtual machine output loaded successfully."
 
 echo
-echo "[3/4] Validating discovered IPv4 addresses..."
+echo "[3/5] Validating discovered IPv4 addresses..."
 
 mapfile -t VM_NAMES < <(
     jq -r 'keys[]' <<<"${VIRTUAL_MACHINES_JSON}"
@@ -72,7 +73,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[4/4] Validating network reachability..."
+echo "[4/5] Validating network reachability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -85,6 +86,22 @@ for VM_NAME in "${VM_NAMES[@]}"; do
     fi
 
     echo "PASS: ${VM_NAME} is reachable at ${VM_IP}"
+done
+
+echo
+echo "[5/5] Validating SSH availability..."
+
+for VM_NAME in "${VM_NAMES[@]}"; do
+    VM_IP="${VM_IPS[${VM_NAME}]}"
+
+    echo "Checking SSH on ${VM_NAME} at ${VM_IP}:22..."
+
+    if ! nc -z -w 3 "${VM_IP}" 22; then
+        echo "ERROR: ${VM_NAME} is not accepting connections on TCP port 22."
+        exit 1
+    fi
+
+    echo "PASS: ${VM_NAME} is accepting SSH connections."
 done
 
 echo
