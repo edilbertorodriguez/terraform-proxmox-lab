@@ -14,6 +14,7 @@
 #   5. Confirm each VM is accepting SSH connections
 #   6. Confirm authenticated SSH access works
 #   7. Confirm cloud-init completed successfully
+#   8. Confirm the QEMU guest agent is active
 #
 ###############################################################################
 
@@ -30,14 +31,14 @@ echo " Terraform Post-Deployment Validation"
 echo "=========================================================="
 
 echo
-echo "[1/7] Verifying Terraform state..."
+echo "[1/8] Verifying Terraform state..."
 
 terraform state list >/dev/null
 
 echo "Terraform state is accessible."
 
 echo
-echo "[2/7] Reading deployed virtual machine information..."
+echo "[2/8] Reading deployed virtual machine information..."
 
 VIRTUAL_MACHINES_JSON="$(terraform output -json virtual_machines)"
 
@@ -49,7 +50,7 @@ fi
 echo "Virtual machine output loaded successfully."
 
 echo
-echo "[3/7] Validating discovered IPv4 addresses..."
+echo "[3/8] Validating discovered IPv4 addresses..."
 
 mapfile -t VM_NAMES < <(
     jq -r 'keys[]' <<<"${VIRTUAL_MACHINES_JSON}"
@@ -86,7 +87,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[4/7] Validating network reachability..."
+echo "[4/8] Validating network reachability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -102,7 +103,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[5/7] Validating SSH availability..."
+echo "[5/8] Validating SSH availability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -118,7 +119,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[6/7] Validating authenticated SSH access..."
+echo "[6/8] Validating authenticated SSH access..."
 
 KNOWN_HOSTS_FILE="$(mktemp)"
 trap 'rm -f "${KNOWN_HOSTS_FILE}"' EXIT
@@ -138,7 +139,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[7/7] Validating cloud-init completion..."
+echo "[7/8] Validating cloud-init completion..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -157,6 +158,28 @@ for VM_NAME in "${VM_NAMES[@]}"; do
     fi
 
     echo "PASS: cloud-init completed successfully on ${VM_NAME}"
+done
+
+echo
+echo "[8/8] Validating QEMU guest agent status..."
+
+for VM_NAME in "${VM_NAMES[@]}"; do
+    VM_IP="${VM_IPS[${VM_NAME}]}"
+    VM_USER="${VM_USERS[${VM_NAME}]}"
+
+    echo "Checking QEMU guest agent on ${VM_NAME}..."
+
+    AGENT_STATUS="$(
+        ssh             -o BatchMode=yes             -o ConnectTimeout=5             -o StrictHostKeyChecking=accept-new             -o UserKnownHostsFile="${KNOWN_HOSTS_FILE}"             "${VM_USER}@${VM_IP}"             'systemctl is-active qemu-guest-agent'
+    )"
+
+    if [[ "${AGENT_STATUS}" != "active" ]]; then
+        echo "ERROR: QEMU guest agent is not active on ${VM_NAME}."
+        echo "Reported status: ${AGENT_STATUS}"
+        exit 1
+    fi
+
+    echo "PASS: QEMU guest agent is active on ${VM_NAME}"
 done
 
 echo
