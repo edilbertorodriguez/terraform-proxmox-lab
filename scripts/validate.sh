@@ -13,6 +13,7 @@
 #   4. Confirm each VM is reachable over the network
 #   5. Confirm each VM is accepting SSH connections
 #   6. Confirm authenticated SSH access works
+#   7. Confirm cloud-init completed successfully
 #
 ###############################################################################
 
@@ -29,14 +30,14 @@ echo " Terraform Post-Deployment Validation"
 echo "=========================================================="
 
 echo
-echo "[1/6] Verifying Terraform state..."
+echo "[1/7] Verifying Terraform state..."
 
 terraform state list >/dev/null
 
 echo "Terraform state is accessible."
 
 echo
-echo "[2/6] Reading deployed virtual machine information..."
+echo "[2/7] Reading deployed virtual machine information..."
 
 VIRTUAL_MACHINES_JSON="$(terraform output -json virtual_machines)"
 
@@ -48,7 +49,7 @@ fi
 echo "Virtual machine output loaded successfully."
 
 echo
-echo "[3/6] Validating discovered IPv4 addresses..."
+echo "[3/7] Validating discovered IPv4 addresses..."
 
 mapfile -t VM_NAMES < <(
     jq -r 'keys[]' <<<"${VIRTUAL_MACHINES_JSON}"
@@ -85,7 +86,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[4/6] Validating network reachability..."
+echo "[4/7] Validating network reachability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -101,7 +102,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[5/6] Validating SSH availability..."
+echo "[5/7] Validating SSH availability..."
 
 for VM_NAME in "${VM_NAMES[@]}"; do
     VM_IP="${VM_IPS[${VM_NAME}]}"
@@ -117,7 +118,7 @@ for VM_NAME in "${VM_NAMES[@]}"; do
 done
 
 echo
-echo "[6/6] Validating authenticated SSH access..."
+echo "[6/7] Validating authenticated SSH access..."
 
 KNOWN_HOSTS_FILE="$(mktemp)"
 trap 'rm -f "${KNOWN_HOSTS_FILE}"' EXIT
@@ -134,6 +135,28 @@ for VM_NAME in "${VM_NAMES[@]}"; do
     fi
 
     echo "PASS: Authenticated SSH succeeded for ${VM_USER}@${VM_IP}"
+done
+
+echo
+echo "[7/7] Validating cloud-init completion..."
+
+for VM_NAME in "${VM_NAMES[@]}"; do
+    VM_IP="${VM_IPS[${VM_NAME}]}"
+    VM_USER="${VM_USERS[${VM_NAME}]}"
+
+    echo "Checking cloud-init on ${VM_NAME}..."
+
+    CLOUD_INIT_STATUS="$(
+        ssh             -o BatchMode=yes             -o ConnectTimeout=5             -o StrictHostKeyChecking=accept-new             -o UserKnownHostsFile="${KNOWN_HOSTS_FILE}"             "${VM_USER}@${VM_IP}"             'cloud-init status --wait'
+    )"
+
+    if [[ "${CLOUD_INIT_STATUS}" != *"status: done"* ]]; then
+        echo "ERROR: cloud-init did not complete successfully on ${VM_NAME}."
+        echo "${CLOUD_INIT_STATUS}"
+        exit 1
+    fi
+
+    echo "PASS: cloud-init completed successfully on ${VM_NAME}"
 done
 
 echo
