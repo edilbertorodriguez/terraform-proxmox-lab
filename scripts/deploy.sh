@@ -8,9 +8,10 @@
 # Workflow:
 #   1. Validate Terraform configuration
 #   2. Provision infrastructure in Proxmox
-#   3. Verify the generated Ansible inventory
-#   4. Validate the inventory
-#   5. Bootstrap newly created Ubuntu servers with Ansible
+#   3. Run post-deployment infrastructure validation
+#   4. Verify the generated Ansible inventory
+#   5. Validate the inventory
+#   6. Bootstrap newly created Ubuntu servers with Ansible
 #
 ###############################################################################
 
@@ -40,7 +41,7 @@ echo "=========================================================="
 ###############################################################################
 
 echo
-echo "[1/5] Validating Terraform configuration..."
+echo "[1/6] Validating Terraform configuration..."
 
 terraform fmt -check
 terraform validate
@@ -50,16 +51,25 @@ terraform validate
 ###############################################################################
 
 echo
-echo "[2/5] Provisioning infrastructure..."
+echo "[2/6] Provisioning infrastructure..."
 
 terraform apply -auto-approve
 
 ###############################################################################
-# Step 3 - Verify Inventory
+# Step 3 - Post-Deployment Validation
 ###############################################################################
 
 echo
-echo "[3/5] Verifying generated inventory..."
+echo "[3/6] Running post-deployment validation..."
+
+"${SCRIPT_DIR}/validate.sh"
+
+###############################################################################
+# Step 4 - Verify Inventory
+###############################################################################
+
+echo
+echo "[4/6] Verifying generated inventory..."
 
 if [[ ! -f "${INVENTORY}" ]]; then
     echo
@@ -71,22 +81,22 @@ fi
 echo "Inventory located successfully."
 
 ###############################################################################
-# Step 4 - Validate Inventory
+# Step 5 - Validate Inventory
 ###############################################################################
 
 echo
-echo "[4/5] Validating Ansible inventory..."
+echo "[5/6] Validating Ansible inventory..."
 
 ansible-inventory \
     -i "${INVENTORY}" \
     --graph
 
 ###############################################################################
-# Step 5 - Bootstrap Ubuntu Servers
+# Step 6 - Bootstrap Ubuntu Servers
 ###############################################################################
 
 echo
-echo "[5/5] Bootstrapping Ubuntu servers..."
+echo "[6/6] Bootstrapping Ubuntu servers..."
 
 pushd "${ANSIBLE_PROJECT}" >/dev/null
 
